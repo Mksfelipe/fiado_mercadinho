@@ -3,7 +3,7 @@
 ; (gere antes o build: flutter build windows --release)
 
 #define MyAppName "Fiados Mercadinho"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Mercadinho"
 #define MyAppExeName "fiado_mercadinho.exe"
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/app_navigation.dart';
@@ -157,7 +158,31 @@ class _AppDrawer extends StatelessWidget {
             onTap: onBackup,
           ),
         ),
+        const Divider(indent: 16, endIndent: 16),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: _VersaoApp(),
+        ),
       ],
+    );
+  }
+}
+
+/// Mostra a versão atual do app (lida do pubspec via package_info_plus).
+class _VersaoApp extends StatelessWidget {
+  const _VersaoApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final versao = snapshot.data?.version ?? '';
+        return Text(
+          versao.isEmpty ? '' : 'Versão $versao',
+          style: const TextStyle(color: Colors.grey, fontSize: 12),
+        );
+      },
     );
   }
 }
