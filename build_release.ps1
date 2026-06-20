@@ -22,12 +22,6 @@ if (-not $versionLine) { throw "Nao achei 'version:' no pubspec.yaml" }
 $version = $versionLine.Matches[0].Groups[1].Value
 Write-Host "Versao detectada: $version" -ForegroundColor Cyan
 
-# --- 1b. Confere se o .iss esta na mesma versao (evita publicar versao errada) ---
-$issVersion = (Select-String -Path "installer\fiado_mercadinho.iss" -Pattern 'MyAppVersion\s+"([0-9.]+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-if ($issVersion -ne $version) {
-    throw "Versao do pubspec ($version) difere do .iss ($issVersion). Ajuste #define MyAppVersion no installer\fiado_mercadinho.iss."
-}
-
 # --- 2. Localiza o ISCC (compilador do Inno Setup) ---
 $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
 if (-not $iscc) {
@@ -42,9 +36,9 @@ Write-Host "`n[1/3] Compilando o app (flutter build windows --release)..." -Fore
 flutter build windows --release
 if ($LASTEXITCODE -ne 0) { throw "flutter build falhou." }
 
-# --- 4. Gera o instalador ---
+# --- 4. Gera o instalador (versao injetada do pubspec, sem editar o .iss) ---
 Write-Host "`n[2/3] Gerando o instalador (Inno Setup)..." -ForegroundColor Yellow
-& $iscc "installer\fiado_mercadinho.iss"
+& $iscc "/DMyAppVersion=$version" "installer\fiado_mercadinho.iss"
 if ($LASTEXITCODE -ne 0) { throw "ISCC falhou." }
 
 $setup = "installer\Output\FiadosMercadinho-Setup-$version.exe"
