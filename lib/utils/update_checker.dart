@@ -17,7 +17,7 @@ import '../core/snack.dart';
 /// compara com a versão atual e, se for mais nova, baixa o instalador e o roda.
 ///
 /// >>> CONFIGURE AQUI <<<: troque pelo seu usuário/repositório do GitHub.
-const _githubOwner = 'SEU_USUARIO';
+const _githubOwner = 'Mksfelipe';
 const _githubRepo = 'fiado_mercadinho';
 
 const _apiUrl =
