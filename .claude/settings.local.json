@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe *)",
+      "Bash(flutter pub *)",
+      "Bash(flutter build *)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\sousa\\\\vs-code\\\\fiado_mercadinho\\\\instalador.iss\")",
+      "Skill(run)",
+      "Bash(flutter run *)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter devices *)",
+      "Bash(tee /tmp/flutter_run.log)",
+      "Read(//tmp/**)",
+      "Bash(where iscc *)",
+      "Read(//c/Program Files \\(x86\\)/Inno Setup 6/**)",
+      "Read(//c/Program Files/Inno Setup 6/**)",
+      "Bash(taskkill //IM fiado_mercadinho.exe //F)",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" instalador.iss)",
+      "PowerShell(flutter build *)",
+      "PowerShell(& \"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\sousa\\\\vs-code\\\\fiado_mercadinho\\\\instalador.iss\")",
+      "PowerShell(& \"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\sousa\\\\vs-code\\\\fiado_mercadinho\\\\instalador.iss\" | Select-Object -Last 4)",
+      "PowerShell(flutter pub *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(& \"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"installer\\\\fiado_mercadinho.iss\" | Select-Object -Last 5)",
+      "PowerShell(& \"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"installer\\\\fiado_mercadinho.iss\" | Select-Object -Last 3)"
+    ]
+  }
+}
