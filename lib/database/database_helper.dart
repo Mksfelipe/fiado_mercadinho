@@ -234,6 +234,40 @@ class DatabaseHelper {
     };
   }
 
+  /// Busca lançamentos com filtros opcionais de período e cliente, já com o
+  /// nome/conta do cliente (para a tela de pesquisa de relatórios).
+  Future<List<TransacaoResumo>> buscarTransacoes({
+    DateTime? de,
+    DateTime? ate,
+    int? clienteId,
+  }) async {
+    final database = await db;
+    final where = <String>[];
+    final args = <Object?>[];
+    if (de != null) {
+      where.add('date(t.data) >= ?');
+      args.add(_fmt.format(de));
+    }
+    if (ate != null) {
+      where.add('date(t.data) <= ?');
+      args.add(_fmt.format(ate));
+    }
+    if (clienteId != null) {
+      where.add('t.cliente_id = ?');
+      args.add(clienteId);
+    }
+    final clause = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+    final rows = await database.rawQuery('''
+      SELECT t.id, t.cliente_id, t.tipo, t.valor, t.descricao, t.data,
+             c.nome AS cliente_nome, c.numero_conta
+      FROM transacoes t
+      JOIN clientes c ON t.cliente_id = c.id
+      $clause
+      ORDER BY t.data DESC
+    ''', args);
+    return rows.map(TransacaoResumo.fromMap).toList();
+  }
+
   Future<List<TransacaoResumo>> ultimasTransacoes(int limit) async {
     final database = await db;
     final rows = await database.rawQuery('''

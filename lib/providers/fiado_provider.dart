@@ -132,6 +132,13 @@ class FiadoProvider extends ChangeNotifier {
   Future<List<TransacaoResumo>> ultimasTransacoes(int limit) =>
       _db.ultimasTransacoes(limit);
 
+  Future<List<TransacaoResumo>> buscarTransacoes({
+    DateTime? de,
+    DateTime? ate,
+    int? clienteId,
+  }) =>
+      _db.buscarTransacoes(de: de, ate: ate, clienteId: clienteId);
+
   Future<List<Map<String, dynamic>>> topDevedoresDetalhado(int limit) =>
       _db.topDevedores(limit);
 
