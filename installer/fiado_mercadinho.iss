@@ -3,10 +3,11 @@
 ; (gere antes o build: flutter build windows --release)
 
 #define MyAppName "Fiados Mercadinho"
-; A versão pode ser injetada pela linha de comando: ISCC /DMyAppVersion=1.3.0
-; (é o que o GitHub Actions e o build_release.ps1 fazem). Sem isso, usa o padrão.
+; A versão é injetada pela linha de comando: ISCC /DMyAppVersion=1.5.0
+; (é o que o GitHub Actions e o build_release.ps1 fazem). O 0.0.0 abaixo é só
+; uma rede de segurança: se aparecer no nome do arquivo, o -D foi esquecido.
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.0"
+  #define MyAppVersion "0.0.0"
 #endif
 #define MyAppPublisher "Mercadinho"
 #define MyAppExeName "fiado_mercadinho.exe"

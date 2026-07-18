@@ -1,26 +1,41 @@
 # build_release.ps1
-# Gera o instalador da versao atual e publica como Release no GitHub.
+# Gera o instalador localmente, para testar antes de publicar.
 #
 # Uso:
-#   .\build_release.ps1                 # build + instalador + publica release
-#   .\build_release.ps1 -Notes "texto"  # com notas de versao
-#   .\build_release.ps1 -SkipRelease     # so build + instalador (nao publica)
+#   .\build_release.ps1                  # usa a ultima tag (ex: v1.4.1 -> 1.4.1)
+#   .\build_release.ps1 -Version 1.5.0   # versao explicita
 #
-# Pre-requisitos: flutter, Inno Setup (ISCC) e gh (GitHub CLI, ja autenticado).
+# Pre-requisitos: flutter e Inno Setup (ISCC).
+#
+# ATENCAO: este script NAO publica nada. Quem publica e o GitHub Actions,
+# disparado ao empurrar uma tag:
+#
+#     git tag v1.5.0 && git push origin v1.5.0
+#
+# O workflow (.github/workflows/release.yml) compila, gera o instalador e cria
+# o Release com o .exe anexado. O pubspec.yaml NAO e a fonte da versao: o CI o
+# reescreve a partir da tag no momento do build, entao o valor commitado fica
+# defasado de proposito e nao deve ser usado para nomear releases.
 
 param(
-    [string]$Notes = "Correcoes e melhorias.",
-    [switch]$SkipRelease
+    [string]$Version
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# --- 1. Le a versao do pubspec.yaml (linha "version: 1.2.0+3" -> "1.2.0") ---
-$versionLine = Select-String -Path "pubspec.yaml" -Pattern '^\s*version:\s*([0-9]+\.[0-9]+\.[0-9]+)' | Select-Object -First 1
-if (-not $versionLine) { throw "Nao achei 'version:' no pubspec.yaml" }
-$version = $versionLine.Matches[0].Groups[1].Value
-Write-Host "Versao detectada: $version" -ForegroundColor Cyan
+# --- 1. Versao: parametro explicito ou a ultima tag do git ---
+if (-not $Version) {
+    $tag = git describe --tags --abbrev=0 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $tag) {
+        throw "Nenhuma tag encontrada. Passe a versao: .\build_release.ps1 -Version 1.5.0"
+    }
+    $Version = $tag -replace '^v', ''
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Versao invalida: '$Version'. Esperado X.Y.Z (ex: 1.5.0)."
+}
+Write-Host "Versao: $Version" -ForegroundColor Cyan
 
 # --- 2. Localiza o ISCC (compilador do Inno Setup) ---
 $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
@@ -32,36 +47,17 @@ if (-not $iscc) {
 if (-not $iscc) { throw "ISCC.exe (Inno Setup) nao encontrado. Instale o Inno Setup 6." }
 
 # --- 3. Build do Flutter para Windows ---
-Write-Host "`n[1/3] Compilando o app (flutter build windows --release)..." -ForegroundColor Yellow
+Write-Host "`n[1/2] Compilando o app (flutter build windows --release)..." -ForegroundColor Yellow
 flutter build windows --release
 if ($LASTEXITCODE -ne 0) { throw "flutter build falhou." }
 
-# --- 4. Gera o instalador (versao injetada do pubspec, sem editar o .iss) ---
-Write-Host "`n[2/3] Gerando o instalador (Inno Setup)..." -ForegroundColor Yellow
-& $iscc "/DMyAppVersion=$version" "installer\fiado_mercadinho.iss"
+# --- 4. Gera o instalador (versao injetada, sem editar o .iss) ---
+Write-Host "`n[2/2] Gerando o instalador (Inno Setup)..." -ForegroundColor Yellow
+& $iscc "/DMyAppVersion=$Version" "installer\fiado_mercadinho.iss"
 if ($LASTEXITCODE -ne 0) { throw "ISCC falhou." }
 
-$setup = "installer\Output\FiadosMercadinho-Setup-$version.exe"
+$setup = "installer\Output\FiadosMercadinho-Setup-$Version.exe"
 if (-not (Test-Path $setup)) { throw "Instalador nao encontrado em $setup" }
-Write-Host "Instalador gerado: $setup" -ForegroundColor Green
 
-if ($SkipRelease) {
-    Write-Host "`n-SkipRelease ativo: release nao publicado." -ForegroundColor DarkYellow
-    return
-}
-
-# --- 5. Publica o Release no GitHub (tag vX.Y.Z + instalador anexado) ---
-Write-Host "`n[3/3] Publicando Release v$version no GitHub..." -ForegroundColor Yellow
-$tag = "v$version"
-
-# Se a tag/release ja existe, sobe so o arquivo; senao cria o release.
-gh release view $tag *> $null
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Release $tag ja existe; atualizando o instalador..." -ForegroundColor DarkYellow
-    gh release upload $tag $setup --clobber
-} else {
-    gh release create $tag $setup --title $tag --notes $Notes
-}
-if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar o release (gh)." }
-
-Write-Host "`nPronto! Release $tag publicado. O app no mercadinho vai oferecer a atualizacao na proxima abertura." -ForegroundColor Green
+Write-Host "`nInstalador gerado: $setup" -ForegroundColor Green
+Write-Host "Para publicar, empurre a tag: git tag v$Version; git push origin v$Version" -ForegroundColor DarkGray
