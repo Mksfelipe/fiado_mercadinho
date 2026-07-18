@@ -344,7 +344,7 @@ class _CompraAberta {
 }
 
 /// Aplica os pagamentos às compras mais antigas (FIFO) e devolve só o que
-/// continua em aberto (valor positivo), das mais recentes para as mais antigas.
+/// continua em aberto (valor positivo), na ordem em que foram lançadas.
 List<_CompraAberta> _comprasEmAberto(List<Transacao> transacoes) {
   final compras = transacoes
       .where((t) => t.tipo == TipoTransacao.fiado)
@@ -368,8 +368,7 @@ List<_CompraAberta> _comprasEmAberto(List<Transacao> transacoes) {
     abertas.add(_CompraAberta(c.data, restante));
   }
 
-  abertas.sort((a, b) => b.data.compareTo(a.data)); // mais recentes primeiro
-  return abertas;
+  return abertas; // mantém a ordem de inserção (mais antigas primeiro)
 }
 
 pw.Widget _linha(String rotulo, String valor) => pw.Padding(
