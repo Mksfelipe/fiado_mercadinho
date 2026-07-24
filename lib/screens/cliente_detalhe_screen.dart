@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
 import '../core/snack.dart';
@@ -178,6 +179,28 @@ class _ClienteDetalheScreenState extends State<ClienteDetalheScreen> {
         .excluirTransacao(t.id!, _cliente.id!);
   }
 
+  Future<void> _editarTransacao(Transacao t) async {
+    final resultado = await showDialog<({double valor, String? descricao})>(
+      context: context,
+      builder: (_) => _EditarValorDialog(transacao: t),
+    );
+    if (resultado == null || !mounted) return;
+
+    final ok = await context.read<FiadoProvider>().editarTransacao(
+          transacaoId: t.id!,
+          clienteId: _cliente.id!,
+          novoValor: resultado.valor,
+          novaDescricao: resultado.descricao,
+        );
+    if (!mounted) return;
+    if (ok) {
+      Snack.info(context, 'Lançamento editado.');
+      _carregar();
+    } else {
+      Snack.error(context, 'Não foi possível editar. Tente novamente.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final saldo =
@@ -327,6 +350,7 @@ class _ClienteDetalheScreenState extends State<ClienteDetalheScreen> {
                         saldo: _saldosAcumulados[transacao.id!] ?? 0,
                         onConfirm: () => _confirmarExclusao(transacao),
                         onDelete: () => _excluirTransacao(transacao),
+                        onEdit: () => _editarTransacao(transacao),
                       ),
                   };
                 },
@@ -847,12 +871,14 @@ class _TileTransacao extends StatelessWidget {
   final double saldo;
   final Future<bool> Function() onConfirm;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const _TileTransacao({
     required this.transacao,
     required this.saldo,
     required this.onConfirm,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -901,7 +927,10 @@ class _TileTransacao extends StatelessWidget {
                 offset: const Offset(0, 2)),
           ],
         ),
-        child: Padding(
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
           padding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
@@ -931,10 +960,18 @@ class _TileTransacao extends StatelessWidget {
                           fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      formatarDataHora(transacao.data),
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.grey),
+                    Row(
+                      children: [
+                        Text(
+                          formatarDataHora(transacao.data),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey),
+                        ),
+                        if (transacao.foiEditado) ...[
+                          const SizedBox(width: 6),
+                          const _EditadoBadge(),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -950,6 +987,18 @@ class _TileTransacao extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
+                  if (transacao.foiEditado &&
+                      transacao.valorOriginal != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      'antes ${formatarMoeda(transacao.valorOriginal!)}',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 2),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -976,10 +1025,155 @@ class _TileTransacao extends StatelessWidget {
             ],
           ),
         ),
+        ),
       ),
     );
   }
+}
 
+class _EditadoBadge extends StatelessWidget {
+  const _EditadoBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: AppColors.orange.withAlpha(30),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit, size: 9, color: AppColors.orange),
+            const SizedBox(width: 3),
+            Text(
+              'editado',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: AppColors.orange,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Diálogo para editar o valor (e a descrição) de um lançamento. Retorna
+/// `(valor, descricao)` ao confirmar, ou `null` se cancelar.
+class _EditarValorDialog extends StatefulWidget {
+  final Transacao transacao;
+  const _EditarValorDialog({required this.transacao});
+
+  @override
+  State<_EditarValorDialog> createState() => _EditarValorDialogState();
+}
+
+class _EditarValorDialogState extends State<_EditarValorDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _valor;
+  late final TextEditingController _descricao;
+
+  @override
+  void initState() {
+    super.initState();
+    _valor = TextEditingController(
+      text: widget.transacao.valor
+          .toStringAsFixed(2)
+          .replaceAll('.', ','),
+    );
+    _descricao =
+        TextEditingController(text: widget.transacao.descricao ?? '');
+  }
+
+  @override
+  void dispose() {
+    _valor.dispose();
+    _descricao.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    if (!_formKey.currentState!.validate()) return;
+    final valor = double.parse(_valor.text.replaceAll(',', '.'));
+    final desc = _descricao.text.trim();
+    Navigator.pop(
+      context,
+      (valor: valor, descricao: desc.isEmpty ? null : desc),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFiado = widget.transacao.tipo == TipoTransacao.fiado;
+    return AlertDialog(
+      title: Text(isFiado ? 'Editar fiado' : 'Editar pagamento'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _valor,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[\d,.]')),
+              ],
+              decoration: const InputDecoration(
+                labelText: 'Valor (R\$)',
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+              onFieldSubmitted: (_) => _confirmar(),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Informe o valor';
+                final n = double.tryParse(v.replaceAll(',', '.'));
+                if (n == null || n <= 0) return 'Valor inválido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _descricao,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: isFiado
+                    ? 'Produto/descrição (opcional)'
+                    : 'Observação (opcional)',
+                prefixIcon: const Icon(Icons.description),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 13, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'O lançamento ficará marcado como editado.',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _confirmar,
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
+  }
 }
 
 class _EstadoVazio extends StatelessWidget {

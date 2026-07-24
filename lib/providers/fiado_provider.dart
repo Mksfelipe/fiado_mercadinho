@@ -120,6 +120,26 @@ class FiadoProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> editarTransacao({
+    required int transacaoId,
+    required int clienteId,
+    required double novoValor,
+    String? novaDescricao,
+  }) async {
+    try {
+      await _db.editarTransacao(transacaoId, novoValor, novaDescricao);
+      _saldos[clienteId] = await _db.saldoCliente(clienteId);
+      _totalHoje = await _db.totalFiadoHoje();
+      _totalSemana = await _db.totalFiadoSemana();
+      _totalMes = await _db.totalFiadoMes();
+      notifyListeners();
+      return true;
+    } catch (e, s) {
+      debugPrint('FiadoProvider.editarTransacao falhou: $e\n$s');
+      return false;
+    }
+  }
+
   Future<void> excluirTransacao(int transacaoId, int clienteId) async {
     await _db.excluirTransacao(transacaoId);
     _saldos[clienteId] = await _db.saldoCliente(clienteId);

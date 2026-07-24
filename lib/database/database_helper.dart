@@ -30,7 +30,7 @@ class DatabaseHelper {
     final path = await caminhoArquivo;
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -63,6 +63,8 @@ class DatabaseHelper {
         valor REAL NOT NULL,
         descricao TEXT,
         data TEXT NOT NULL,
+        editado_em TEXT,
+        valor_original REAL,
         FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
       )
     ''');
@@ -89,6 +91,18 @@ class DatabaseHelper {
       // viola a unicidade da conta. Reatribui um número sequencial por cliente.
       await _backfillNumeroConta(db);
       await _criarIndices(db);
+    }
+    if (oldVersion < 4) {
+      // Colunas para marcar lançamentos cujo valor foi editado depois de
+      // registrado (editado_em) e guardar o valor original (valor_original).
+      for (final ddl in const [
+        'ALTER TABLE transacoes ADD COLUMN editado_em TEXT',
+        'ALTER TABLE transacoes ADD COLUMN valor_original REAL',
+      ]) {
+        try {
+          await db.execute(ddl);
+        } catch (_) {}
+      }
     }
   }
 
@@ -195,6 +209,28 @@ class DatabaseHelper {
   Future<int> excluirTransacao(int id) async {
     final database = await db;
     return database.delete('transacoes', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Edita o valor (e a descrição) de um lançamento já registrado, marcando-o
+  /// como editado. Preserva o valor original no primeiro edit — o COALESCE usa
+  /// o `valor` antigo da linha antes de ele ser sobrescrito.
+  Future<int> editarTransacao(
+    int id,
+    double novoValor,
+    String? novaDescricao,
+  ) async {
+    final database = await db;
+    return database.rawUpdate(
+      '''
+      UPDATE transacoes
+      SET valor = ?,
+          descricao = ?,
+          valor_original = COALESCE(valor_original, valor),
+          editado_em = ?
+      WHERE id = ?
+      ''',
+      [novoValor, novaDescricao, DateTime.now().toIso8601String(), id],
+    );
   }
 
   Future<List<Transacao>> listarTransacoesPorCliente(int clienteId) async {

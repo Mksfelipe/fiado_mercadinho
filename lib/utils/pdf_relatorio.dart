@@ -115,11 +115,13 @@ pw.Document _montarDocumento({
   // mostra só o que ainda está em aberto (valor positivo): compras quitadas
   // somem e a parcialmente paga aparece apenas com o valor que falta.
   final abertas = _comprasEmAberto(transacoes);
+  final temEditado = _temEditado(abertas);
 
   // Altura justa ao conteúdo, para não desperdiçar papel na bobina.
-  // Cabeçalho/rodapé fixos (~52mm) + cada linha em aberto (~5mm).
-  final alturaConteudo =
-      52.0 + (abertas.isEmpty ? 6.0 : abertas.length * 5.0);
+  // Cabeçalho/rodapé fixos (~52mm) + cada linha em aberto (~5mm) + legenda.
+  final alturaConteudo = 52.0 +
+      (abertas.isEmpty ? 6.0 : abertas.length * 5.0) +
+      (temEditado ? 4.0 : 0.0);
 
   // Largura = área imprimível real da térmica 80mm (~72mm). Usar 80mm faz a
   // coluna da direita (Valor) cair fora da área de impressão e ser cortada.
@@ -189,6 +191,7 @@ pw.Document _montarDocumento({
             ],
           ),
           _sep(),
+          if (temEditado) _legendaEditado(),
           pw.Text(
             'Emitido: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
             textAlign: pw.TextAlign.center,
@@ -213,11 +216,13 @@ pw.Document _montarComprovante({
   // Itens que compunham a conta no momento do pagamento (antes deste pagar).
   final abertas = _comprasEmAberto(transacoes);
   final temTroco = troco > 0.005;
+  final temEditado = _temEditado(abertas);
 
   // Cabeçalho/rodapé + cada item (~5mm) + bloco de totais. Cresce com troco.
   final alturaConteudo = 64.0 +
       (abertas.isEmpty ? 6.0 : abertas.length * 5.0) +
-      (temTroco ? 5.0 : 0.0);
+      (temTroco ? 5.0 : 0.0) +
+      (temEditado ? 4.0 : 0.0);
 
   final pageFormat = PdfPageFormat(
     72 * PdfPageFormat.mm,
@@ -292,6 +297,7 @@ pw.Document _montarComprovante({
           _sep(),
           valor('NOVO SALDO DEVEDOR', novoSaldo, destaque: true),
           _sep(),
+          if (temEditado) _legendaEditado(),
           pw.Text(
             'Emitido: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
             textAlign: pw.TextAlign.center,
@@ -325,8 +331,13 @@ List<pw.Widget> _linhasAbertas(List<_CompraAberta> abertas) {
             child: pw.Row(
               children: [
                 pw.Expanded(
-                  child: pw.Text(_dtFmt.format(c.data),
-                      style: const pw.TextStyle(fontSize: 8)),
+                  child: pw.Text(
+                    // '*' marca a data das compras cujo valor foi editado.
+                    c.editado
+                        ? '${_dtFmt.format(c.data)} *'
+                        : _dtFmt.format(c.data),
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
                 ),
                 pw.Text(_moeda.format(c.restante),
                     style: const pw.TextStyle(fontSize: 8)),
@@ -336,11 +347,23 @@ List<pw.Widget> _linhasAbertas(List<_CompraAberta> abertas) {
       .toList();
 }
 
+/// `true` se alguma das compras em aberto teve o valor editado — usado para
+/// imprimir a legenda do '*' no rodapé do cupom.
+bool _temEditado(List<_CompraAberta> abertas) =>
+    abertas.any((c) => c.editado);
+
+/// Legenda do marcador de valor editado, exibida só quando há alguma.
+pw.Widget _legendaEditado() => pw.Text(
+      '* valor editado',
+      style: const pw.TextStyle(fontSize: 7),
+    );
+
 /// Uma compra (ou o que restou dela) que ainda não foi paga.
 class _CompraAberta {
   final DateTime data;
   final double restante;
-  _CompraAberta(this.data, this.restante);
+  final bool editado;
+  _CompraAberta(this.data, this.restante, {this.editado = false});
 }
 
 /// Aplica os pagamentos às compras mais antigas (FIFO) e devolve só o que
@@ -365,7 +388,7 @@ List<_CompraAberta> _comprasEmAberto(List<Transacao> transacoes) {
     }
     final restante = c.valor - credito; // só o que falta (sempre positivo)
     credito = 0;
-    abertas.add(_CompraAberta(c.data, restante));
+    abertas.add(_CompraAberta(c.data, restante, editado: c.foiEditado));
   }
 
   return abertas; // mantém a ordem de inserção (mais antigas primeiro)
