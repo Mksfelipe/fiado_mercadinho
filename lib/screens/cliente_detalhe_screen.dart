@@ -120,6 +120,9 @@ class _ClienteDetalheScreenState extends State<ClienteDetalheScreen> {
   int get _qtdPagamentos =>
       _todas.where((t) => t.tipo == TipoTransacao.pagamento).length;
 
+  // Atalho "+" (tecla do balcão): abre direto o lançamento de fiado.
+  void _atalhoLancarFiado() => _abrirFormTransacao(TipoTransacao.fiado);
+
   Future<void> _abrirFormTransacao(TipoTransacao tipo) async {
     if (!mounted) return;
     final saldo =
@@ -212,7 +215,19 @@ class _ClienteDetalheScreenState extends State<ClienteDetalheScreen> {
         MediaQuery.of(context).padding.top + kToolbarHeight + 185.0;
     final items = _renderItems;
 
-    return Scaffold(
+    return CallbackShortcuts(
+      // Enquanto a conta do cliente está aberta, a tecla "+" (numérico ou
+      // Shift+=) abre direto o formulário de "Lançar Fiado".
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.numpadAdd):
+            _atalhoLancarFiado,
+        const SingleActivator(LogicalKeyboardKey.add): _atalhoLancarFiado,
+        const SingleActivator(LogicalKeyboardKey.equal, shift: true):
+            _atalhoLancarFiado,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
@@ -357,6 +372,8 @@ class _ClienteDetalheScreenState extends State<ClienteDetalheScreen> {
               ),
             ),
         ],
+      ),
+        ),
       ),
     );
   }
