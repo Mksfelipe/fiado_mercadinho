@@ -51,6 +51,11 @@ class _MainScreenState extends State<MainScreen> {
     exportarBackup(context);
   }
 
+  void _verificarAtualizacao() {
+    _scaffoldKey.currentState?.closeDrawer();
+    verificarAtualizacao(context, manual: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
@@ -72,6 +77,7 @@ class _MainScreenState extends State<MainScreen> {
           selectedIndex: selectedIndex,
           onNavegar: _navegar,
           onBackup: _fazerBackup,
+          onVerificarAtualizacao: _verificarAtualizacao,
         ),
         body: IndexedStack(
           index: selectedIndex,
@@ -86,11 +92,13 @@ class _AppDrawer extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onNavegar;
   final VoidCallback onBackup;
+  final VoidCallback onVerificarAtualizacao;
 
   const _AppDrawer({
     required this.selectedIndex,
     required this.onNavegar,
     required this.onBackup,
+    required this.onVerificarAtualizacao,
   });
 
   @override
@@ -156,6 +164,15 @@ class _AppDrawer extends StatelessWidget {
             title: const Text('Fazer backup'),
             subtitle: const Text('Salva uma cópia em Downloads'),
             onTap: onBackup,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: ListTile(
+            leading: const Icon(Icons.system_update_alt_outlined),
+            title: const Text('Verificar atualizações'),
+            subtitle: const Text('Procura uma versão nova agora'),
+            onTap: onVerificarAtualizacao,
           ),
         ),
         const Divider(indent: 16, endIndent: 16),
